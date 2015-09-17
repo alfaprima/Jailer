@@ -1,5 +1,5 @@
 /*
- * Copyright 2007 the original author or authors.
+ * Copyright 2007 - 2012 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -96,7 +96,7 @@ public class PrimaryKey {
     	}
     }
 
-	private boolean isAssignable(Column uPKColumn, Column entityColumn) {
+	public static boolean  isAssignable(Column uPKColumn, Column entityColumn) {
 		if (!uPKColumn.type.equals(entityColumn.type)) {
 			return false;
 		}
@@ -189,5 +189,33 @@ public class PrimaryKey {
     public String toString() {
         return toSQL(null);
     }
-    
+
+    public static boolean isIncreasable(Column uPKColumn, Column column) {
+        if(!uPKColumn.type.equals(column.type)) {
+            return false;
+        }
+
+        if((uPKColumn.precision < 0) && (column.precision >=0) ) {
+            return false;
+        }
+
+        if((uPKColumn.precision >=0) && (column.precision < 0)) {
+            return false;
+        }
+
+        if(uPKColumn.length == 0 && column.length > 0) {
+            return false;
+        }
+
+        if(uPKColumn.length < column.length) {
+            return true;
+        }
+
+        if(uPKColumn.precision < column.precision) {
+            return true;
+        }
+
+        // never should get THIS far !
+        return false;
+    }
 }

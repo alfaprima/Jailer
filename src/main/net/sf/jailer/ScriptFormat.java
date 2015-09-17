@@ -1,5 +1,5 @@
 /*
- * Copyright 2007 the original author or authors.
+ * Copyright 2007 - 2012 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,7 +35,10 @@ public enum ScriptFormat {
 	/**
 	 * DbUnit's FlatXmlDataSet format.
 	 */
-	DBUNIT_FLAT_XML("DbUnit flat dataset", "DbUnit flat dataset Export", ".xml");
+	DBUNIT_FLAT_XML("DbUnit flat dataset", "DbUnit flat dataset Export", ".xml"),
+	
+	
+	LIQUIBASE_XML("Liquibase", "Liquibase Export", ".xml");
 
 	/**
 	 * Constructor.

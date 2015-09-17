@@ -1,5 +1,5 @@
 /*
- * Copyright 2007 the original author or authors.
+ * Copyright 2007 - 2012 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,6 +46,8 @@ import net.sf.jailer.util.CsvFile;
 import net.sf.jailer.util.CsvFile.LineFilter;
 import net.sf.jailer.util.PrintUtil;
 import net.sf.jailer.util.SqlUtil;
+
+import org.apache.log4j.Logger;
 
 /**
  * Relational data model.
@@ -189,7 +191,12 @@ public class DataModel {
 	 */
 	private Long lastModified;
 	
-    /**
+	/**
+	 * The logger.
+	 */
+	private static final Logger _log = Logger.getLogger(DataModel.class);
+
+	/**
      * Gets a table by name.
      * 
      * @param name the name of the table
@@ -285,127 +292,138 @@ public class DataModel {
      * @param additionalAssociationsFile association file to read too
      */
     public DataModel(String additionalTablesFile, String additionalAssociationsFile, Map<String, String> sourceSchemaMapping, LineFilter assocFilter) throws Exception {
-    	// tables
-    	File nTablesFile = CommandLineParser.getInstance().newFile(getTablesFile());
-		CsvFile tablesFile = new CsvFile(nTablesFile);
-        List<CsvFile.Line> tableList = new ArrayList<CsvFile.Line>(tablesFile.getLines());
-        if (additionalTablesFile != null) {
-            tableList.addAll(new CsvFile(CommandLineParser.getInstance().newFile(additionalTablesFile)).getLines());
-        }
-        for (CsvFile.Line line: tableList) {
-            boolean defaultUpsert = "Y".equalsIgnoreCase(line.cells.get(1));
-            List<Column> pk = new ArrayList<Column>();
-            int j;
-            for (j = 2; j < line.cells.size() && line.cells.get(j).toString().length() > 0; ++j) {
-                String col = line.cells.get(j).trim();
-                try {
-                	pk.add(Column.parse(col));
-                } catch (Exception e) {
-                	throw new RuntimeException("unable to load table '" + line.cells.get(0) + "'. " + line.location, e);
-                }
-            }
-            String mappedSchemaTableName = SqlUtil.mappedSchema(sourceSchemaMapping, line.cells.get(0));
-			Table table = new Table(mappedSchemaTableName, primaryKeyFactory.createPrimaryKey(pk), defaultUpsert);
-			table.setAuthor(line.cells.get(j + 1));
-			table.setOriginalName(line.cells.get(0));
-			if (tables.containsKey(mappedSchemaTableName)) {
-				if (additionalTablesFile == null) {
-					throw new RuntimeException("Duplicate table name '" + mappedSchemaTableName + "'");
-				}
-			}
-            tables.put(mappedSchemaTableName, table);
-        }
-        
-        // columns
-        File file = CommandLineParser.getInstance().newFile(getColumnsFile());
-        if (file.exists()) {
-	    	CsvFile columnsFile = new CsvFile(file);
-	        List<CsvFile.Line> columnsList = new ArrayList<CsvFile.Line>(columnsFile.getLines());
-	        for (CsvFile.Line line: columnsList) {
-	            List<Column> columns = new ArrayList<Column>();
-	            for (int j = 1; j < line.cells.size() && line.cells.get(j).toString().length() > 0; ++j) {
+    	try {
+	    	// tables
+	    	File nTablesFile = CommandLineParser.getInstance().newFile(getTablesFile());
+			CsvFile tablesFile = new CsvFile(nTablesFile);
+	        List<CsvFile.Line> tableList = new ArrayList<CsvFile.Line>(tablesFile.getLines());
+	        if (additionalTablesFile != null) {
+	            tableList.addAll(new CsvFile(CommandLineParser.getInstance().newFile(additionalTablesFile)).getLines());
+	        }
+	        for (CsvFile.Line line: tableList) {
+	            boolean defaultUpsert = "Y".equalsIgnoreCase(line.cells.get(1));
+	            List<Column> pk = new ArrayList<Column>();
+	            int j;
+	            for (j = 2; j < line.cells.size() && line.cells.get(j).toString().length() > 0; ++j) {
 	                String col = line.cells.get(j).trim();
 	                try {
-	                	columns.add(Column.parse(col));
+	                	pk.add(Column.parse(col));
 	                } catch (Exception e) {
-	                	// ignore
+	                	throw new RuntimeException("unable to load table '" + line.cells.get(0) + "'. " + line.location, e);
+	                }
+	            }
+	            String mappedSchemaTableName = SqlUtil.mappedSchema(sourceSchemaMapping, line.cells.get(0));
+				Table table = new Table(mappedSchemaTableName, primaryKeyFactory.createPrimaryKey(pk), defaultUpsert);
+				table.setAuthor(line.cells.get(j + 1));
+				table.setOriginalName(line.cells.get(0));
+				if (tables.containsKey(mappedSchemaTableName)) {
+					if (additionalTablesFile == null) {
+						throw new RuntimeException("Duplicate table name '" + mappedSchemaTableName + "'");
 					}
-	            }
-	            Table table = tables.get(SqlUtil.mappedSchema(sourceSchemaMapping, line.cells.get(0)));
-	            if (table != null) {
-	            	table.setColumns(columns);
+				}
+	            tables.put(mappedSchemaTableName, table);
+	        }
+	        
+	        // columns
+	        File file = CommandLineParser.getInstance().newFile(getColumnsFile());
+	        if (file.exists()) {
+		    	CsvFile columnsFile = new CsvFile(file);
+		        List<CsvFile.Line> columnsList = new ArrayList<CsvFile.Line>(columnsFile.getLines());
+		        for (CsvFile.Line line: columnsList) {
+		            List<Column> columns = new ArrayList<Column>();
+		            for (int j = 1; j < line.cells.size() && line.cells.get(j).toString().length() > 0; ++j) {
+		                String col = line.cells.get(j).trim();
+		                try {
+		                	columns.add(Column.parse(col));
+		                } catch (Exception e) {
+		                	// ignore
+						}
+		            }
+		            Table table = tables.get(SqlUtil.mappedSchema(sourceSchemaMapping, line.cells.get(0)));
+		            if (table != null) {
+		            	table.setColumns(columns);
+		            }
+		        }
+	        }
+	        
+	        // associations
+	        List<CsvFile.Line> associationList = new ArrayList<CsvFile.Line>(new CsvFile(CommandLineParser.getInstance().newFile(getAssociationsFile()), assocFilter).getLines());
+	        if (additionalAssociationsFile != null) {
+	            associationList.addAll(new CsvFile(CommandLineParser.getInstance().newFile(additionalAssociationsFile)).getLines());
+	        }
+	        for (CsvFile.Line line: associationList) {
+	            String location = line.location;
+	            try {
+	            	String associationLoadFailedMessage = "Unable to load association from " + line.cells.get(0) + " to " + line.cells.get(1) + " on " + line.cells.get(4) + " because: ";
+	                Table tableA = (Table) tables.get(SqlUtil.mappedSchema(sourceSchemaMapping, line.cells.get(0)));
+	                if (tableA == null) {
+	                     continue;
+//	                     throw new RuntimeException(associationLoadFailedMessage + "Table '" + line.cells.get(0) + "' not found");
+	                }
+	                Table tableB = (Table) tables.get(SqlUtil.mappedSchema(sourceSchemaMapping, line.cells.get(1)));
+	                if (tableB == null) {
+	                	continue;
+//	                	throw new RuntimeException(associationLoadFailedMessage + "Table '" + line.cells.get(1) + "' not found");
+	                }
+	                boolean insertSourceBeforeDestination = "A".equalsIgnoreCase(line.cells.get(2)); 
+	                boolean insertDestinationBeforeSource = "B".equalsIgnoreCase(line.cells.get(2));
+	                Cardinality cardinality = Cardinality.parse(line.cells.get(3).trim());
+	                if (cardinality == null) {
+	                	cardinality = Cardinality.MANY_TO_MANY;
+	                }
+	                String joinCondition = line.cells.get(4);
+	                String name = line.cells.get(5);
+	                if ("".equals(name)) {
+	                    name = null;
+	                }
+	                if (name == null) {
+	                    throw new RuntimeException(associationLoadFailedMessage + "Association name missing (column 6 is empty, each association must have an unique name)");
+	                }
+	                String author = line.cells.get(6);
+	                Association associationA = new Association(tableA, tableB, insertSourceBeforeDestination, insertDestinationBeforeSource, joinCondition, this, false, cardinality, author);
+	                Association associationB = new Association(tableB, tableA, insertDestinationBeforeSource, insertSourceBeforeDestination, joinCondition, this, true, cardinality.reverse(), author);
+	                associationA.reversalAssociation = associationB;
+	                associationB.reversalAssociation = associationA;
+	                tableA.associations.add(associationA);
+	                tableB.associations.add(associationB);
+	                if (name != null) {
+	                    if (namedAssociations.put(name, associationA) != null) {
+	                        throw new RuntimeException("duplicate association name: " + name);
+	                    }
+	                    associationA.setName(name);
+	                    name = "inverse-" + name;
+	                    if (namedAssociations.put(name, associationB) != null) {
+	                        throw new RuntimeException("duplicate association name: " + name);
+	                    }
+	                    associationB.setName(name);
+	                }
+	            } catch (Exception e) {
+	                throw new RuntimeException(location + ": " + e.getMessage(), e);
 	            }
 	        }
-        }
-        
-        // associations
-        List<CsvFile.Line> associationList = new ArrayList<CsvFile.Line>(new CsvFile(CommandLineParser.getInstance().newFile(getAssociationsFile()), assocFilter).getLines());
-        if (additionalAssociationsFile != null) {
-            associationList.addAll(new CsvFile(CommandLineParser.getInstance().newFile(additionalAssociationsFile)).getLines());
-        }
-        for (CsvFile.Line line: associationList) {
-            String location = line.location;
-            try {
-                Table tableA = (Table) tables.get(SqlUtil.mappedSchema(sourceSchemaMapping, line.cells.get(0)));
-                if (tableA == null) {
-                     continue; // throw new RuntimeException("Table '" + line.cells.get(0) + "' not found");
-                }
-                Table tableB = (Table) tables.get(SqlUtil.mappedSchema(sourceSchemaMapping, line.cells.get(1)));
-                if (tableB == null) {
-                    continue; // throw new RuntimeException("Table '" + line.cells.get(1) + "' not found");
-                }
-                boolean insertSourceBeforeDestination = "A".equalsIgnoreCase(line.cells.get(2)); 
-                boolean insertDestinationBeforeSource = "B".equalsIgnoreCase(line.cells.get(2));
-                Cardinality cardinality = Cardinality.parse(line.cells.get(3).trim());
-                if (cardinality == null) {
-                	cardinality = Cardinality.MANY_TO_MANY;
-                }
-                String joinCondition = line.cells.get(4);
-                String name = line.cells.get(5);
-                if ("".equals(name)) {
-                    name = null;
-                }
-                String author = line.cells.get(6);
-                Association associationA = new Association(tableA, tableB, insertSourceBeforeDestination, insertDestinationBeforeSource, joinCondition, this, false, cardinality, author);
-                Association associationB = new Association(tableB, tableA, insertDestinationBeforeSource, insertSourceBeforeDestination, joinCondition, this, true, cardinality.reverse(), author);
-                associationA.reversalAssociation = associationB;
-                associationB.reversalAssociation = associationA;
-                tableA.associations.add(associationA);
-                tableB.associations.add(associationB);
-                if (name != null) {
-                    if (namedAssociations.put(name, associationA) != null) {
-                        throw new RuntimeException("duplicate association name: " + name);
-                    }
-                    associationA.setName(name);
-                    name = "inverse-" + name;
-                    if (namedAssociations.put(name, associationB) != null) {
-                        throw new RuntimeException("duplicate association name: " + name);
-                    }
-                    associationB.setName(name);
-                }
-            } catch (Exception e) {
-                throw new RuntimeException(location + ": " + e.getMessage(), e);
-            }
-        }
-        initDisplayNames();
-        
-        // model name
-        File nameFile = CommandLineParser.getInstance().newFile(getModelNameFile());
-        name = DEFAULT_NAME;
-    	lastModified = null;
-        try {
-        	lastModified = nTablesFile.lastModified();
-	        if (nameFile.exists()) {
-	        	List<CsvFile.Line> nameList = new ArrayList<CsvFile.Line>(new CsvFile(nameFile).getLines());
-	        	if (nameList.size() > 0) {
-	        		CsvFile.Line line =  nameList.get(0);
-	        		name = line.cells.get(0);
-	        		lastModified = Long.parseLong(line.cells.get(1));
-	        	}
+	        initDisplayNames();
+	        
+	        // model name
+	        File nameFile = CommandLineParser.getInstance().newFile(getModelNameFile());
+	        name = DEFAULT_NAME;
+	    	lastModified = null;
+	        try {
+	        	lastModified = nTablesFile.lastModified();
+		        if (nameFile.exists()) {
+		        	List<CsvFile.Line> nameList = new ArrayList<CsvFile.Line>(new CsvFile(nameFile).getLines());
+		        	if (nameList.size() > 0) {
+		        		CsvFile.Line line =  nameList.get(0);
+		        		name = line.cells.get(0);
+		        		lastModified = Long.parseLong(line.cells.get(1));
+		        	}
+		        }
+	        } catch (Throwable t) {
+	        	// keep defaults
 	        }
-        } catch (Throwable t) {
-        	// keep defaults
-        }
+    	} catch (Exception e) {
+    		_log.error("failed to load data-model " + getDatamodelFolder() + File.separator, e);
+    		throw e;
+    	}
     }
 
     /**
@@ -426,6 +444,15 @@ public class DataModel {
 
     	for (Table table: getTables()) {
     		String uName = table.getUnqualifiedName();
+    		if (uName != null && uName.length() > 0) {
+                char fc = uName.charAt(0);
+                if (!Character.isLetterOrDigit(fc) && fc != '_') {
+                   String fcStr = Character.toString(fc);
+                   if (uName.startsWith(fcStr) && uName.endsWith(fcStr)) {
+                       uName = uName.substring(1, uName.length() -1);
+                   }
+                }
+    		}
     		String schema = table.getSchema(null);
     		String displayName;
     		if (nonUniqueUnqualifiedNames.contains(uName) && schema != null) {
@@ -733,9 +760,9 @@ public class DataModel {
 	 * @param stable the subject table
 	 * @param subjectCondition 
 	 * @param scriptFormat
-	 * 
+	 * @param positions table positions or <code>null</code>
 	 */
-	public void save(String file, Table stable, String subjectCondition, ScriptFormat scriptFormat, List<RestrictionDefinition> restrictionDefinitions) throws FileNotFoundException {
+	public void save(String file, Table stable, String subjectCondition, ScriptFormat scriptFormat, List<RestrictionDefinition> restrictionDefinitions, Map<String, Map<String, double[]>> positions) throws FileNotFoundException {
 		File extractionModel = new File(file);
 		PrintWriter out = new PrintWriter(extractionModel);
 		out.println("# subject; condition;  limit; restrictions");
@@ -771,7 +798,11 @@ public class DataModel {
 		}
 		saveFilters(out);
 		out.println();
-		LayoutStorage.store(out);
+		if (positions == null) {
+			LayoutStorage.store(out);
+		} else {
+			LayoutStorage.store(out, positions);
+		}
 		out.println();
 		out.println(CsvFile.BLOCK_INDICATOR + "version");
 		out.println(Jailer.VERSION);

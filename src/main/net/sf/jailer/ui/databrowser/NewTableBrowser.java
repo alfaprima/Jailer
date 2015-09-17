@@ -1,5 +1,5 @@
 /*
- * Copyright 2007 the original author or authors.
+ * Copyright 2007 - 2012 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import javax.swing.DefaultListModel;
 
 import net.sf.jailer.datamodel.DataModel;
 import net.sf.jailer.datamodel.Table;
+import net.sf.jailer.ui.UIUtil;
 
 /**
  * Dialog for selecting the table for a new table browser.
@@ -36,6 +37,8 @@ public abstract class NewTableBrowser extends javax.swing.JDialog {
     public NewTableBrowser(java.awt.Frame parent, DataModel datamodel, boolean offerAlternatives) {
         super(parent, true);
         initComponents();
+        
+        UIUtil.wireComponentWithButton(tableList, okButton);
         
         analyzeButton.setVisible(DataBrowserContext.isSupportsDataModelUpdates());
         
@@ -94,6 +97,7 @@ public abstract class NewTableBrowser extends javax.swing.JDialog {
             public int getSize() { return strings.length; }
             public Object getElementAt(int i) { return strings[i]; }
         });
+        tableList.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
         tableList.addListSelectionListener(new javax.swing.event.ListSelectionListener() {
             public void valueChanged(javax.swing.event.ListSelectionEvent evt) {
                 tableListValueChanged(evt);

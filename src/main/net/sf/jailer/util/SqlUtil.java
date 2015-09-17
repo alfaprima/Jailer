@@ -1,5 +1,5 @@
 /*
- * Copyright 2007 the original author or authors.
+ * Copyright 2007 - 2012 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package net.sf.jailer.util;
 
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -29,6 +30,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import net.sf.jailer.Configuration;
 import net.sf.jailer.database.DBMS;
@@ -283,11 +285,14 @@ public class SqlUtil {
         if (content instanceof java.sql.Timestamp) {
         	if (c.useToTimestampFunction) {
         		String format;
+        		String nanoFormat;
         		synchronized(defaultTimestampFormat) {
 	        		format = defaultTimestampFormat.format((Date) content);
-	       			format += getNanoString((Timestamp) content, c.appendNanosToTimestamp, c.nanoSep);
+	        		String nanoString = getNanoString((Timestamp) content, c.appendNanosToTimestamp, c.nanoSep);
+	        		nanoFormat = "FF" + (nanoString.length() - 1);
+	    			format += nanoString;
         		}
-				return "to_timestamp('" + format + "', 'YYYY-MM-DD HH24:MI:SS.FF')";
+				return "to_timestamp('" + format + "', 'YYYY-MM-DD HH24.MI.SS." + nanoFormat + "')";
         	} else if (c.timestampFormat != null) {
         		String format;
         		synchronized(c.timestampFormat) {
@@ -296,12 +301,18 @@ public class SqlUtil {
 	        			format += getNanoString((Timestamp) content, c.appendNanosToTimestamp, c.nanoSep);
 	        		}
         		}
-				return "'" + format + "'";
+				content = format;
+        	}
+        	if (c.timestampPattern != null) {
+        		return c.timestampPattern.replace("%s", "'" + content + "'");
         	}
             return "'" + content + "'";
         }
         if (content instanceof String) {
             return "'" + Configuration.forDbms(session).convertToStringLiteral((String) content) + "'";
+        }
+        if (content instanceof HStoreWrapper) {
+            return "'" + Configuration.forDbms(session).convertToStringLiteral(content.toString()) + "'::hstore";
         }
         if (content instanceof byte[]) {
         	byte[] data = (byte[]) content;
@@ -320,6 +331,12 @@ public class SqlUtil {
         		// PostgreSQL bit values
         		return "B'" + content + "'";
         	}
+        }
+        if (content instanceof UUID) {
+        	if (dbms == DBMS.POSTGRESQL) {
+        		return "'" + content + "'::uuid";
+        	}
+        	return "'" + content + "'";
         }
         if (Configuration.forDbms(session).isIdentityInserts()) {
         	// Boolean mapping for MSSQL/Sybase
@@ -361,6 +378,18 @@ public class SqlUtil {
     	}
     	return nanosString;
     }
+    
+    private static final int TYPE_HSTORE = 10500;
+    
+    static class HStoreWrapper {
+        private final String value;
+        public HStoreWrapper(String value) {
+            this.value = value;
+        }
+        public String toString() {
+            return value;
+        }
+    }
 
     /**
      * Gets object from result-set.
@@ -370,43 +399,58 @@ public class SqlUtil {
      * @param typeCache for caching types
      * @return object
      */
-	public static Object getObject(ResultSet resultSet, int i, Map<Integer, Integer> typeCache) throws SQLException {
+	public static Object getObject(ResultSet resultSet, ResultSetMetaData resultSetMetaData, int i, Map<Integer, Integer> typeCache) throws SQLException {
 		Integer type = typeCache.get(i);
 		if (type == null) {
 			try {
-				type = resultSet.getMetaData().getColumnType(i);
+				type = resultSetMetaData.getColumnType(i);
 				if (SQLDialect.treatDateAsTimestamp) {
 					if (type == Types.DATE) {
 						type = Types.TIMESTAMP;
 					}
-				}
+				 }
+				 if (dbms == DBMS.POSTGRESQL) {
+	                String typeName = resultSetMetaData.getColumnTypeName(i);
+	                if ("hstore".equalsIgnoreCase(typeName)) {
+	                    type = TYPE_HSTORE;
+	                }
+	             }
 			} catch (Exception e) {
 				type = Types.OTHER;
 			}
 			typeCache.put(i, type);
 		}
-		if (type == Types.TIMESTAMP) {
-			return resultSet.getTimestamp(i);
-		}
-		if (type == Types.DATE) {
-			if (dbms == DBMS.MySQL) {
-				// YEAR
-				String typeName = resultSet.getMetaData().getColumnTypeName(i);
-				if (typeName != null && typeName.toUpperCase().equals("YEAR")) {
-					int result = resultSet.getInt(i);
-					if (resultSet.wasNull()) {
-						return null;
-					}
-					return result;
-				}
+		try {
+			if (type == Types.ARRAY) {
+				return resultSet.getString(i);
 			}
-			Date date = resultSet.getDate(i);
-			return date;
+			if (type == Types.TIMESTAMP) {
+				return resultSet.getTimestamp(i);
+			}
+			if (type == Types.DATE) {
+				if (dbms == DBMS.MySQL) {
+					// YEAR
+					String typeName = resultSetMetaData.getColumnTypeName(i);
+					if (typeName != null && typeName.toUpperCase().equals("YEAR")) {
+						int result = resultSet.getInt(i);
+						if (resultSet.wasNull()) {
+							return null;
+						}
+						return result;
+					}
+				}
+				Date date = resultSet.getDate(i);
+				return date;
+			}
+		} catch (SQLException e) {
+			return resultSet.getString(i);
 		}
 		Object object = resultSet.getObject(i);
 		if (dbms == DBMS.POSTGRESQL) {
-			if (object instanceof Boolean) {
-				String typeName = resultSet.getMetaData().getColumnTypeName(i);
+			if (type == TYPE_HSTORE) {
+				return new HStoreWrapper(resultSet.getString(i));
+            } else if (object instanceof Boolean) {
+				String typeName = resultSetMetaData.getColumnTypeName(i);
 				if (typeName != null && typeName.toLowerCase().equals("bit")) {
 					final String value = Boolean.TRUE.equals(object)? "B'1'" : "B'0'";
 					return new Object() {
@@ -428,11 +472,11 @@ public class SqlUtil {
      * @param typeCache for caching types
      * @return type according to {@link Types}
      */
-	public static int getColumnType(ResultSet resultSet, int i, Map<Integer, Integer> typeCache) throws SQLException {
+	public static int getColumnType(ResultSet resultSet, ResultSetMetaData resultSetMetaData, int i, Map<Integer, Integer> typeCache) throws SQLException {
 		Integer type = typeCache.get(i);
 		if (type == null) {
 			try {
-				type = resultSet.getMetaData().getColumnType(i);
+				type = resultSetMetaData.getColumnType(i);
 			} catch (Exception e) {
 				type = Types.OTHER;
 			}
@@ -449,14 +493,14 @@ public class SqlUtil {
      * @param typeCache for caching types
      * @return object
      */
-	public static int getColumnType(ResultSet resultSet, String columnName, Map<String, Integer> typeCache) throws SQLException {
+	public static int getColumnType(ResultSet resultSet, ResultSetMetaData resultSetMetaData, String columnName, Map<String, Integer> typeCache) throws SQLException {
 		Integer type = typeCache.get(columnName);
 		if (type == null) {
 			try {
 				type = Types.OTHER;
-				for (int i = resultSet.getMetaData().getColumnCount(); i > 0; --i) {
-					if (columnName.equalsIgnoreCase(resultSet.getMetaData().getColumnName(i))) {
-						type = resultSet.getMetaData().getColumnType(i);
+				for (int i = resultSetMetaData.getColumnCount(); i > 0; --i) {
+					if (columnName.equalsIgnoreCase(resultSetMetaData.getColumnName(i))) {
+						type = resultSetMetaData.getColumnType(i);
 						break;
 					}
 				}
@@ -475,14 +519,14 @@ public class SqlUtil {
      * @param typeCache for caching types
      * @return object
      */
-	public static Object getObject(ResultSet resultSet, String columnName, Map<String, Integer> typeCache) throws SQLException {
+	public static Object getObject(ResultSet resultSet, ResultSetMetaData resultSetMetaData, String columnName, Map<String, Integer> typeCache) throws SQLException {
 		Integer type = typeCache.get(columnName);
 		if (type == null) {
 			try {
 				type = Types.OTHER;
-				for (int i = resultSet.getMetaData().getColumnCount(); i > 0; --i) {
-					if (columnName.equalsIgnoreCase(resultSet.getMetaData().getColumnName(i))) {
-						type = resultSet.getMetaData().getColumnType(i);
+				for (int i = resultSetMetaData.getColumnCount(); i > 0; --i) {
+					if (columnName.equalsIgnoreCase(resultSetMetaData.getColumnName(i))) {
+						type = resultSetMetaData.getColumnType(i);
 						break;
 					}
 				}

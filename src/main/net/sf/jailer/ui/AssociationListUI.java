@@ -1,5 +1,5 @@
 /*
- * Copyright 2007 the original author or authors.
+ * Copyright 2007 - 2012 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ import javax.swing.DefaultComboBoxModel;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
 import net.sf.jailer.datamodel.Association;
@@ -241,6 +242,12 @@ public abstract class AssociationListUI extends javax.swing.JPanel {
 				revalidate();
 			}
 		});
+        if (jScrollPane1.getVerticalScrollBar() != null) {
+        	jScrollPane1.getVerticalScrollBar().setUnitIncrement(16);
+        }
+        if (jScrollPane1.getHorizontalScrollBar() != null) {
+        	jScrollPane1.getHorizontalScrollBar().setUnitIncrement(16);
+        }
     }
 
     private Double pixelPerTableNameChar = null;
@@ -558,6 +565,7 @@ public abstract class AssociationListUI extends javax.swing.JPanel {
 						public void itemStateChanged(ItemEvent e) {
 							if (checkbox.isSelected()) {
 								selection.add(association);
+								onSelect(association);
 							} else {
 								selection.remove(association);
 							}
@@ -690,10 +698,16 @@ public abstract class AssociationListUI extends javax.swing.JPanel {
 						selection.removeAll(node.associations);
 					} else {
 						selection.addAll(node.associations);
+						Node leaf = node;
+						while (leaf.children != null && leaf.children.size() > 0) {
+							leaf = leaf.children.get(0);
+						}
+						if (leaf.associations.size() > 0) {
+							onSelect(leaf.associations.iterator().next());
+						}
 					}
 					updateModel();
 				}
-				
 			}
 		});
 		allMouseListener.add(l);
@@ -704,7 +718,10 @@ public abstract class AssociationListUI extends javax.swing.JPanel {
 		return panel;
 	}
     
-    private Map<String, String> shortForms = new HashMap<String, String>();
+    protected void onSelect(AssociationModel association) {
+	}
+
+	private Map<String, String> shortForms = new HashMap<String, String>();
     
     private String shorten(String text) {
     	if (shortForms.containsKey(text)) {
@@ -894,7 +911,9 @@ public abstract class AssociationListUI extends javax.swing.JPanel {
     }//GEN-LAST:event_unhideButtonActionPerformed
 
     private void doItButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_doItButtonActionPerformed
-        applyAction(new ArrayList<AssociationListUI.AssociationModel>(selection));
+    	if (selection.size() < 50 || JOptionPane.YES_OPTION == JOptionPane.showConfirmDialog(this, "Resolve " + selection.size() + " associations?", "Resolve", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE)) {
+        	applyAction(new ArrayList<AssociationListUI.AssociationModel>(selection));
+    	}
     }//GEN-LAST:event_doItButtonActionPerformed
 
 

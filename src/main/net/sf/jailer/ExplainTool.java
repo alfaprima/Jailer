@@ -1,5 +1,5 @@
 /*
- * Copyright 2007 the original author or authors.
+ * Copyright 2007 - 2012 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -85,7 +85,7 @@ public class ExplainTool {
                 List<String> keys = new ArrayList<String>();
                 int i = 2;
                 for (@SuppressWarnings("unused") Column column: graph.getUniversalPrimaryKey().getColumns()) {
-                    keys.add(SqlUtil.toSql(SqlUtil.getObject(resultSet, i++, typeCache), session));
+                    keys.add(SqlUtil.toSql(SqlUtil.getObject(resultSet, getMetaData(resultSet), i++, typeCache), session));
                 }
                 if (!namesOfTablesToIgnore.contains(type)) {
                     try {
@@ -144,7 +144,7 @@ public class ExplainTool {
                 associationID[0] = resultSet.getInt(2);
                 int i = 3;
                 for (@SuppressWarnings("unused") Column column: graph.getUniversalPrimaryKey().getColumns()) {
-                    preKeys.add(SqlUtil.toSql(SqlUtil.getObject(resultSet, i++, typeCache), session));
+                    preKeys.add(SqlUtil.toSql(SqlUtil.getObject(resultSet, getMetaData(resultSet), i++, typeCache), session));
                 }
             }
         });

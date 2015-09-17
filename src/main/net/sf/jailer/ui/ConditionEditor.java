@@ -1,5 +1,5 @@
 /*
- * Copyright 2007 the original author or authors.
+ * Copyright 2007 - 2012 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import javax.swing.JSeparator;
 
 import net.sf.jailer.datamodel.Column;
 import net.sf.jailer.datamodel.Table;
+import net.sf.jailer.ui.scrollmenu.JScrollPopupMenu;
 
 /**
  * Editor for multi-line SQL conditions with parameter support.
@@ -88,7 +89,7 @@ public class ConditionEditor extends javax.swing.JDialog {
      * Opens a drop-down box which allows the user to select columns for restriction definitions.
      */
 	private void openColumnDropDownBox(JLabel label, String alias, Table table) {
-		JPopupMenu popup = new JPopupMenu();
+		JPopupMenu popup = new JScrollPopupMenu();
 		List<String> columns = new ArrayList<String>();
 		
 		for (Column c: table.getColumns()) {
@@ -117,6 +118,7 @@ public class ConditionEditor extends javax.swing.JDialog {
 			});
 			popup.add(m);
 		}
+		UIUtil.fit(popup);
 		popup.show(label, 0, label.getHeight());
 	}
 	

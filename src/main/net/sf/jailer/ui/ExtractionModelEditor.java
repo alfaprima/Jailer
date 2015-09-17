@@ -1,5 +1,5 @@
 /*
- * Copyright 2007 the original author or authors.
+ * Copyright 2007 - 2012 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -94,6 +94,7 @@ import net.sf.jailer.extractionmodel.ExtractionModel;
 import net.sf.jailer.ui.graphical_view.AssociationRenderer;
 import net.sf.jailer.ui.graphical_view.GraphicalDataModelView;
 import net.sf.jailer.ui.graphical_view.LayoutStorage;
+import net.sf.jailer.ui.scrollmenu.JScrollPopupMenu;
 import net.sf.jailer.util.CsvFile;
 import net.sf.jailer.util.SqlUtil;
 
@@ -1212,6 +1213,9 @@ public class ExtractionModelEditor extends javax.swing.JPanel {
 			if (extractionModelFrame != null && extractionModelFrame.closureBorderView != null) {
 				extractionModelFrame.closureBorderView.refresh();
 			}
+			if (extractionModelFrame != null && extractionModelFrame.restrictedDependenciesView != null) {
+				extractionModelFrame.restrictedDependenciesView.refresh();
+			}
 		}
 	}
 	
@@ -1328,7 +1332,7 @@ public class ExtractionModelEditor extends javax.swing.JPanel {
      * Opens a drop-down box which allows the user to select columns for restriction definitions.
      */
 	private void openColumnDropDownBox(JLabel label, String alias, Table table) {
-		JPopupMenu popup = new JPopupMenu();
+		JPopupMenu popup = new JScrollPopupMenu();
 		List<String> columns = new ArrayList<String>();
 		
 		for (Column c: table.getColumns()) {
@@ -1355,6 +1359,7 @@ public class ExtractionModelEditor extends javax.swing.JPanel {
 			});
 			popup.add(m);
 		}
+		UIUtil.fit(popup);
 		popup.show(label, 0, label.getHeight());
 	}
 
@@ -1588,6 +1593,7 @@ public class ExtractionModelEditor extends javax.swing.JPanel {
 			initialRestrictionCondition = saveInitialRestrictionCondition;
 			extractionModelFrame.closureView.refresh();
 			extractionModelFrame.closureBorderView.refresh();
+			extractionModelFrame.restrictedDependenciesView.refresh();
 			tree.grabFocus();
     	}
     }
@@ -1607,6 +1613,7 @@ public class ExtractionModelEditor extends javax.swing.JPanel {
 		restrictionsTable.setModel(restrictionTableModel());
 		extractionModelFrame.closureView.refresh();
 		extractionModelFrame.closureBorderView.refresh();
+		extractionModelFrame.restrictedDependenciesView.refresh();
     }
 
 	/**
@@ -2136,7 +2143,7 @@ public class ExtractionModelEditor extends javax.swing.JPanel {
 			if (stable == null) {
 				return true;
 			}
-			dataModel.save(extractionModelFile, stable, ConditionEditor.toMultiLine(condition.getText()), scriptFormat, currentRestrictionDefinitions);
+			dataModel.save(extractionModelFile, stable, ConditionEditor.toMultiLine(condition.getText()), scriptFormat, currentRestrictionDefinitions, null);
 			needsSave = false;
 			extractionModelFrame.updateTitle(needsSave);
 		} catch (Exception e) {
@@ -2285,6 +2292,7 @@ public class ExtractionModelEditor extends javax.swing.JPanel {
 		graphView.resetExpandedState();
 		extractionModelFrame.closureView.refresh();
 		extractionModelFrame.closureBorderView.refresh();
+		extractionModelFrame.restrictedDependenciesView.refresh();
 	}
 	 
 	/**
@@ -2330,6 +2338,7 @@ public class ExtractionModelEditor extends javax.swing.JPanel {
 		graphView.resetExpandedState();
 		extractionModelFrame.closureView.refresh();
 		extractionModelFrame.closureBorderView.refresh();
+		extractionModelFrame.restrictedDependenciesView.refresh();
 	}
 
 	/**

@@ -1,5 +1,5 @@
 /*
- * Copyright 2007 the original author or authors.
+ * Copyright 2007 - 2012 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -146,14 +146,14 @@ public class ExportDialog extends javax.swing.JDialog {
         } catch (Exception e) {
 		}
         
-        sortedCheckBox.setEnabled(ScriptFormat.SQL.equals(scriptFormat) || ScriptFormat.DBUNIT_FLAT_XML.equals(scriptFormat));
+        sortedCheckBox.setEnabled(ScriptFormat.SQL.equals(scriptFormat) || ScriptFormat.DBUNIT_FLAT_XML.equals(scriptFormat) || ScriptFormat.LIQUIBASE_XML.equals(scriptFormat));
         sortedCheckBox.setSelected(true);
         upsertCheckbox.setEnabled(ScriptFormat.SQL.equals(scriptFormat));
         rowsPerThread.setEnabled(ScriptFormat.SQL.equals(scriptFormat));
 
     	Map<JTextField, String> defaults = new HashMap<JTextField, String>();
 
-    	if ((!ScriptFormat.SQL.equals(scriptFormat)) && (!ScriptFormat.DBUNIT_FLAT_XML.equals(scriptFormat))) {
+    	if ((!ScriptFormat.SQL.equals(scriptFormat)) && (!ScriptFormat.DBUNIT_FLAT_XML.equals(scriptFormat)) && !ScriptFormat.LIQUIBASE_XML.equals(scriptFormat)) {
         	schemaMappingPanel.setVisible(false);
         } else {
         	schemaMappingPanel.setVisible(true);

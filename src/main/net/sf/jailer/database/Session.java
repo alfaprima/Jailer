@@ -1,5 +1,5 @@
 /*
- * Copyright 2007 the original author or authors.
+ * Copyright 2007 - 2012 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import java.sql.DriverManager;
 import java.sql.DriverPropertyInfo;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
@@ -66,9 +67,14 @@ public class Session {
     private static Connection temporaryTableSession = null;
     
     /**
-     * Scope of temporary tables.
+     * Shared scope of temporary tables.
      */
     private static TemporaryTableScope temporaryTableScope;
+    
+    /**
+     * Scope of temporary tables.
+     */
+    public final TemporaryTableScope scope;
     
     /**
      * No SQL-Exceptions will be logged in silent mode. 
@@ -97,9 +103,29 @@ public class Session {
     
     /**
      * Reads a JDBC-result-set.
+     * Caches a {@link ResultSetMetaData}.
      */
     public static abstract class AbstractResultSetReader implements ResultSetReader {
     
+    	private ResultSet owner;
+    	private ResultSetMetaData metaData;
+    	
+    	/**
+    	 * Gets and cache meta data of a result set.
+    	 * 
+    	 * @param resultSet
+    	 * @return meta data of resultSet
+    	 * @throws SQLException 
+    	 */
+    	protected ResultSetMetaData getMetaData(ResultSet resultSet) throws SQLException {
+    		if (owner == resultSet) {
+    			return metaData;
+    		}
+    		owner = resultSet;
+    		metaData = resultSet.getMetaData();
+    		return metaData;
+    	}
+    	
         /**
          * Does nothing.
          */
@@ -212,7 +238,8 @@ public class Session {
      */
     public Session(String driverClassName, final String dbUrl, final String user, final String password, final TemporaryTableScope scope, boolean transactional) throws Exception {
     	this.transactional = transactional;
-        _log.info("connect to user " + user + " at "+ dbUrl);
+        this.scope = scope;
+    	_log.info("connect to user " + user + " at "+ dbUrl);
         if (classLoaderForJdbcDriver != null) {
             Driver d = (Driver)Class.forName(driverClassName, true, classLoaderForJdbcDriver).newInstance();
             DriverManager.registerDriver(new DriverShim(d));
@@ -234,7 +261,24 @@ public class Session {
                 
                 if (con == null) {
                 	try {
-                		con = DriverManager.getConnection(dbUrl, user, password);
+                		if (dbUrl.startsWith("jdbc:mysql:")) {
+	                		try {
+	                			 java.util.Properties info = new java.util.Properties();
+	                			 if (user != null) {
+	                				 info.put("user", user);
+	                			 }
+	                			 if (password != null) {
+	                				 info.put("password", password);
+	                			 }
+	                			 info.put("noDatetimeStringSync", "true");
+	                			 con = DriverManager.getConnection(dbUrl, info);
+	                		} catch (SQLException e2) {
+	                			// ignore
+	                		}
+                		}
+                		if (con == null) {
+                			con = DriverManager.getConnection(dbUrl, user, password);
+                		}
                 		defaultConnection = con;
                 	} catch (SQLException e) {
                 		if (defaultConnection != null) {
@@ -395,6 +439,20 @@ public class Session {
      * @param context cancellation context
      */
     public long executeQuery(String sqlQuery, ResultSetReader reader, String alternativeSQL, Object context, int limit) throws SQLException {
+    	return executeQuery(sqlQuery, reader, alternativeSQL, context, limit, 0);
+    }
+
+    /**
+     * Executes a SQL-Query (SELECT) with timeout.
+     * 
+     * @param sqlQuery the query in SQL
+     * @param reader the reader for the result
+     * @param alternativeSQL query to be executed if sqlQuery fails
+     * @param limit row limit, 0 for unlimited
+     * @param context cancellation context
+     * @param timeout the timeout in sec
+     */
+    public long executeQuery(String sqlQuery, ResultSetReader reader, String alternativeSQL, Object context, int limit, int timeout) throws SQLException {
         _log.info(sqlQuery);
         long rc = 0;
         try {
@@ -403,6 +461,9 @@ public class Session {
 	        CancellationHandler.begin(statement, context);
 	        ResultSet resultSet;
 	        try {
+	        	if (timeout > 0) {
+	        		statement.setQueryTimeout(timeout);
+	        	}
 	        	resultSet = statement.executeQuery(sqlQuery);
 	        } catch (SQLException e) {
 	        	if (alternativeSQL != null) {
@@ -501,8 +562,8 @@ public class Session {
 	            } catch (SQLException e) {
 		        	CancellationHandler.checkForCancellation(null);
 		        	CancellationHandler.end(statement, null);
-		        	if (++failures > 10 || e.getErrorCode() != -911) {
-		    	    	throw new SqlException("\"" + e.getMessage() + "\" in statement \"" + sqlUpdate + "\"", sqlUpdate, e);
+		        	if (++failures > 10 || (e.getErrorCode() != -911 && e.getErrorCode() != 8176)) {
+		        		throw new SqlException("\"" + e.getMessage() + "\" in statement \"" + sqlUpdate + "\"", sqlUpdate, e);
 	                }
 	                // deadlock
 	                serializeAccess = true;

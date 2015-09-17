@@ -1,5 +1,5 @@
 /*
- * Copyright 2007 the original author or authors.
+ * Copyright 2007 - 2012 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -166,7 +166,7 @@ public class DataModelEditor extends javax.swing.JDialog {
 	        }
         }
         
-		File modelFinderTablesFile = new File(ModelBuilder.MODEL_BUILDER_TABLES_CSV);
+		File modelFinderTablesFile = new File(ModelBuilder.getModelBuilderTablesFilename());
 		if (merge && modelFinderTablesFile.exists()) {
 		    List<CsvFile.Line> tablesFromModelFinder = new CsvFile(modelFinderTablesFile).getLines();
 	        for (Iterator<CsvFile.Line> i = tablesFromModelFinder.iterator(); i.hasNext(); ) {
@@ -205,7 +205,7 @@ public class DataModelEditor extends javax.swing.JDialog {
 	        newTables += tablesFromModelFinder.size();
 		}
 		sortLineList(tables, true);
-        File modelFinderAssociationsFile = new File(ModelBuilder.MODEL_BUILDER_ASSOCIATIONS_CSV);
+        File modelFinderAssociationsFile = new File(ModelBuilder.getModelBuilderAssociationsFilename());
 		if (merge && modelFinderAssociationsFile.exists()) {
 	        List<CsvFile.Line> associationsFromModelFinder = new CsvFile(modelFinderAssociationsFile).getLines();
 	        associations.addAll(associationsFromModelFinder);
@@ -250,7 +250,7 @@ public class DataModelEditor extends javax.swing.JDialog {
 		setSize(900, 700);
 		setLocation(100, 32);
 
-		File modelFinderColumnFile = new File(ModelBuilder.MODEL_BUILDER_COLUMNS_CSV);
+		File modelFinderColumnFile = new File(ModelBuilder.getModelBuilderColumnsFilename());
 		if (merge && modelFinderColumnFile.exists()) {
 	        for (CsvFile.Line l: new CsvFile(modelFinderColumnFile).getLines()) {
 	        	CsvFile.Line ol = columns.get(l.cells.get(0));
@@ -377,6 +377,10 @@ public class DataModelEditor extends javax.swing.JDialog {
 					}
 				}
 			});
+		}
+		
+		if (merge) {
+			ModelBuilder.cleanUp();
 		}
     }
     

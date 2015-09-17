@@ -1,5 +1,5 @@
 /*
- * Copyright 2007 the original author or authors.
+ * Copyright 2007 - 2012 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -94,6 +94,11 @@ public class ExtractionModelFrame extends javax.swing.JFrame {
 	final ClosureBorderDialog closureBorderView;
 
 	/**
+	 * The border browser.
+	 */
+	final ClosureBorderDialog restrictedDependenciesView;
+
+	/**
 	 * The "Cycle View" dialog.
 	 */
 	final CyclesView cycleViewDialog;
@@ -124,6 +129,10 @@ public class ExtractionModelFrame extends javax.swing.JFrame {
         pack();
         updateTitle(extractionModelEditor.needsSave);
         dbConnectionDialog = new DbConnectionDialog(this, Jailer.APPLICATION_NAME, null);
+
+		// L&F can no longer be changed
+        view.setVisible(false);
+        
         try {
 	        for (final LookAndFeelInfo lfInfo: UIManager.getInstalledLookAndFeels()) {
 	        	JMenuItem mItem = new JMenuItem();
@@ -139,7 +148,7 @@ public class ExtractionModelFrame extends javax.swing.JFrame {
         }
         updateMenuItems();
         closureView = new ClosureView(this);
-        closureBorderView = new ClosureBorderDialog(this) {
+        closureBorderView = new ClosureBorderDialog(this, true) {
 			private static final long serialVersionUID = -7426280043553389753L;
 			@Override
 			protected Table getRoot() {
@@ -154,6 +163,32 @@ public class ExtractionModelFrame extends javax.swing.JFrame {
 				if (extractionModelEditor != null) {
 					extractionModelEditor.removeRestrictions(associations);
 				}
+			}
+			@Override
+			protected void onSelect(Association association) {
+				extractionModelEditor.select(association);
+			}
+        };
+        
+        restrictedDependenciesView = new RestrictedDependenciesListDialog(this) {
+			private static final long serialVersionUID = -7426280043553389753L;
+			@Override
+			protected Table getRoot() {
+				return extractionModelEditor == null? null : extractionModelEditor.root;
+			}
+			@Override
+			protected DataModel getDataModel() {
+				return extractionModelEditor == null? null : extractionModelEditor.dataModel;
+			}
+			@Override
+			protected void removeRestrictions(Collection<Association> associations) {
+				if (extractionModelEditor != null) {
+					extractionModelEditor.removeRestrictions(associations);
+				}
+			}
+			@Override
+			protected void onSelect(Association association) {
+				extractionModelEditor.select(association);
 			}
         };
         
@@ -269,6 +304,7 @@ public class ExtractionModelFrame extends javax.swing.JFrame {
         closureBorderToolMenuItem = new javax.swing.JMenuItem();
         queryBuilder = new javax.swing.JMenuItem();
         cycleView = new javax.swing.JMenuItem();
+        restrictedDependenciesToolMenuItem = new javax.swing.JMenuItem();
         renderHtml = new javax.swing.JMenuItem();
         jMenu2 = new javax.swing.JMenu();
         helpContent = new javax.swing.JMenuItem();
@@ -697,6 +733,14 @@ public class ExtractionModelFrame extends javax.swing.JFrame {
         });
         jMenu3.add(cycleView);
 
+        restrictedDependenciesToolMenuItem.setText("Restricted Dependencies View");
+        restrictedDependenciesToolMenuItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                restrictedDependenciesToolMenuItemActionPerformed(evt);
+            }
+        });
+        jMenu3.add(restrictedDependenciesToolMenuItem);
+
         renderHtml.setText("HTML Rendering");
         renderHtml.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -951,6 +995,7 @@ public class ExtractionModelFrame extends javax.swing.JFrame {
        		//	}
        			askForDataModel(this);
     			closureBorderView.refresh();
+    			restrictedDependenciesView.refresh();
     		}
         } catch (Exception e) {
         	UIUtil.showException(this, "Error", e);
@@ -1012,10 +1057,16 @@ public class ExtractionModelFrame extends javax.swing.JFrame {
     	try {
     		if (extractionModelEditor.dataModel != null && !ScriptFormat.XML.equals(extractionModelEditor.scriptFormat)) {
     			Association restrictedDependency = findRestrictedDependency(extractionModelEditor.dataModel);
-    			if (restrictedDependency != null && JOptionPane.showConfirmDialog(this, 
-    					"Dependency from '" + restrictedDependency.source.getName() + "' to '" + restrictedDependency.destination.getName() + "'\n" +
-    					"is restricted.\nReferential integrity is not guaranteed!\n\nProceed?", "Restricted Dependency", JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
-    				return;
+    			if (restrictedDependency != null) {
+    				switch (JOptionPane.showOptionDialog(this, 
+    						"Dependency from '" + restrictedDependency.source.getName() + "' to '" + restrictedDependency.destination.getName() + "'\n" +
+        					"is restricted.\nReferential integrity is not guaranteed!", "Restricted Dependency", JOptionPane.YES_NO_OPTION, JOptionPane.INFORMATION_MESSAGE, null, new Object[] { "Ok", "Cancel", "Show Dependency" }, "Cancel")) {
+					case 1: return;
+					case 2: 
+						restrictedDependenciesView.setVisible(true);
+						restrictedDependenciesView.toFront();
+						return;
+					}
     			}
     		}
     		if (extractionModelEditor.subject == null) {
@@ -1118,7 +1169,7 @@ public class ExtractionModelFrame extends javax.swing.JFrame {
         	args.add("render-datamodel");
         	File file = saveRestrictions();
         	args.add(file.getName());
-        	UIUtil.runJailer(this, args, false, true, false, true, null, dbConnectionDialog.getPassword(), null, null, false, true);
+        	UIUtil.runJailer(this, args, false, true, false, true, null, null /* dbConnectionDialog.getPassword() */, null, null, false, true);
         	BrowserLauncher.openURL(table == null? "render/index.html" : ("render/" + HtmlDataModelRenderer.toFileName(table)));
         } catch (Exception e) {
         	UIUtil.showException(this, "Error", e);
@@ -1232,6 +1283,7 @@ public class ExtractionModelFrame extends javax.swing.JFrame {
 			((CardLayout) editorPanel.getLayout()).show(editorPanel, "editor");
 			validate();
 			closureBorderView.refresh();
+			restrictedDependenciesView.refresh();
 			updateTitle(extractionModelEditor.needsSave);
 		} catch (Throwable t) {
 			UIUtil.showException(this, "Error", t);
@@ -1251,6 +1303,7 @@ public class ExtractionModelFrame extends javax.swing.JFrame {
 	    		((CardLayout) editorPanel.getLayout()).show(editorPanel, "editor");
 	    		validate();
 				closureBorderView.refresh();
+				restrictedDependenciesView.refresh();
 	    		updateTitle(extractionModelEditor.needsSave);
 	    	}
 		} catch (Throwable t) {
@@ -1269,6 +1322,7 @@ public class ExtractionModelFrame extends javax.swing.JFrame {
 			((CardLayout) editorPanel.getLayout()).show(editorPanel, "editor");
 			validate();
 			closureBorderView.refresh();
+			restrictedDependenciesView.refresh();
 			updateTitle(extractionModelEditor.needsSave);
 		} catch (Throwable t) {
 			UIUtil.showException(this, "Error", t);
@@ -1492,6 +1546,11 @@ public class ExtractionModelFrame extends javax.swing.JFrame {
     	closureBorderView.setVisible(true);
     	closureBorderView.toFront();
     }//GEN-LAST:event_closureBorderToolMenuItemActionPerformed
+
+    private void restrictedDependenciesToolMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_restrictedDependenciesToolMenuItemActionPerformed
+    	restrictedDependenciesView.setVisible(true);
+    	restrictedDependenciesView.toFront();
+    }//GEN-LAST:event_restrictedDependenciesToolMenuItemActionPerformed
     
     boolean isHorizontalLayout = false;
 	
@@ -1578,15 +1637,16 @@ public class ExtractionModelFrame extends javax.swing.JFrame {
             public void run() {
             	
             	try {
-    	    		File plafSetting = new File(PLAFSETTING);
+            		// L&F can no longer be changed
+//    	    		File plafSetting = new File(PLAFSETTING);
     	    		String plaf;
-    	    		if (!plafSetting.exists()) {
+//    	    		if (!plafSetting.exists()) {
     	    			plaf = "com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel";
-    	    		} else {
-	    	    		BufferedReader in = new BufferedReader(new FileReader(plafSetting));
-	    	    		plaf = in.readLine();
-	    	    		in.close();
-    	    		}
+//    	    		} else {
+//	    	    		BufferedReader in = new BufferedReader(new FileReader(plafSetting));
+//	    	    		plaf = in.readLine();
+//	    	    		in.close();
+//    	    		}
     		    	UIManager.setLookAndFeel(plaf);
     		    	customizeNimbus();
     			} catch (Exception x) {
@@ -1668,6 +1728,9 @@ public class ExtractionModelFrame extends javax.swing.JFrame {
         }
 		if (extractionModelFrame.closureBorderView != null) {
 			extractionModelFrame.closureBorderView.refresh();
+		}
+		if (extractionModelFrame.restrictedDependenciesView != null) {
+			extractionModelFrame.restrictedDependenciesView.refresh();
 		}
 	}
     	
@@ -1754,6 +1817,7 @@ public class ExtractionModelFrame extends javax.swing.JFrame {
     private javax.swing.JMenuItem refresh;
     private javax.swing.JMenuItem removeAllRestrictions;
     private javax.swing.JMenuItem renderHtml;
+    private javax.swing.JMenuItem restrictedDependenciesToolMenuItem;
     private javax.swing.JMenuItem save;
     private javax.swing.JMenuItem saveAs;
     private javax.swing.JCheckBoxMenuItem showIgnored;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2007 the original author or authors.
+ * Copyright 2007 - 2012 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -286,7 +286,7 @@ public abstract class DataModelManagerDialog extends javax.swing.JFrame {
 			try {
 	            File file = new File(MODEL_SELECTION_FILE);
 	            BufferedWriter out = new BufferedWriter(new FileWriter(file));
-	            out.write(currentModel);
+	            out.write(currentModel + "\n");
 	            out.close();
 	        } catch (Exception e) {
 	            e.printStackTrace();
@@ -539,6 +539,7 @@ public abstract class DataModelManagerDialog extends javax.swing.JFrame {
     private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
         hasSelectedModel = false;
         setVisible(false);
+        dispose();
     }//GEN-LAST:event_jButton2ActionPerformed
 
     private void analyzeButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_analyzeButtonActionPerformed
@@ -548,7 +549,7 @@ public abstract class DataModelManagerDialog extends javax.swing.JFrame {
 			DbConnectionDialog dbConnectionDialog = new DbConnectionDialog(this, applicationName,
 					new InfoBar("Connect with Database", 
 							"Select a connection to the database to be analyzed, or create a new connection.\n" +
-							"Note that new connections will be assigned to the datamodel \"" + modelDetails.get(currentModel).a + "\"."));
+							"New connections will be assigned to the datamodel \"" + modelDetails.get(currentModel).a + "\"."));
 	        if (dbConnectionDialog.connect("Analyze Database")) {
 	        	List<String> args = new ArrayList<String>();
 	        	args.add("build-model");

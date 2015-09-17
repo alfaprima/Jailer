@@ -1,5 +1,5 @@
 /*
- * Copyright 2007 the original author or authors.
+ * Copyright 2007 - 2012 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -76,7 +76,9 @@ public class Configuration {
      */
     private String sqlLimitSuffix;
     
-    /**
+    private Integer varcharLengthLimit = null;
+    
+	/**
      * Maps characters to escape sequences according to {@link #stringLiteralEscapeSequences}.
      */
     private Map<Character, String> charToEscapeSequence = new HashMap<Character, String>();
@@ -96,7 +98,7 @@ public class Configuration {
     public SimpleDateFormat dateFormat = null;
 
 	public char nanoSep = '.';
-	public boolean appendNanosToTimestamp = false;
+	public boolean appendNanosToTimestamp = true;
 	public boolean appendMillisToTimestamp = false;
 	public boolean useToTimestampFunction = false;
 	public DateFormat timestampFormat = null;
@@ -104,6 +106,7 @@ public class Configuration {
 	public String emptyBLOBValue = null;
 	public String binaryPattern = "x'%s'";
 	public boolean avoidLeftJoin = false;
+	public String timestampPattern = null;
 	
 	/**
 	 * Manages session local temporary tables.
@@ -431,4 +434,26 @@ public class Configuration {
 		return sqlLimitSuffix;
 	}
     
+    public Integer getVarcharLengthLimit() {
+		return varcharLengthLimit;
+	}
+
+	public void setVarcharLengthLimit(Integer varcharLengthLimit) {
+		this.varcharLengthLimit = varcharLengthLimit;
+	}
+
+	/**
+	 * @return the timestampPattern
+	 */
+	public String getTimestampPattern() {
+		return timestampPattern;
+	}
+
+	/**
+	 * @param timestampPattern the timestampPattern to set
+	 */
+	public void setTimestampPattern(String timestampPattern) {
+		this.timestampPattern = timestampPattern;
+	}
+
 }

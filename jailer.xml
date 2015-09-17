@@ -77,15 +77,44 @@ http://www.springframework.org/schema/util http://www.springframework.org/schema
 		<!-- for Informix -->
 		<bean class="net.sf.jailer.Configuration">
 			<property name="urlPattern" value="jdbc:informix.*" />
+			<property name="timestampPattern" value="cast(%s as datetime year to fraction)" />
+			<property name="varcharLengthLimit"	value="255" />
 			<property name="typeReplacement">
 				<map>
 					<entry key="datetime" value="datetime year to fraction"/>
 					<entry key="serial" value="int"/>
 					<entry key="serial8" value="int8"/>
-				</map>
+					<entry key="bigserial" value="bigint"/>
+        		</map>
 			</property>
+	        <property name="sqlLimitSuffix" value="FIRST %s" />
+			<property name="statisticRenovator">
+                <bean class="net.sf.jailer.database.SqlScriptBasedStatisticRenovator">
+                    <constructor-arg value="script/informix/update_statistics.sql" />
+                </bean>
+            </property>
+            <property name="sessionTemporaryTableManager">
+	            <bean class="net.sf.jailer.database.DefaultTemporaryTableManager">
+	                <property name="dmlTableReferencePrefix" value="" />
+                    <property name="createTablePrefix" value="CREATE TEMP TABLE " />
+                    <property name="createTableSuffix" value=" WITH NO LOG" />
+                    <property name="createIndexPrefix" value="CREATE INDEX " />
+                    <property name="createIndexSuffix" value="" />
+                    <property name="indexTablePrefix" value="" />
+                    <property name="dropTablePrefix" value="DROP TABLE " />
+                <!-- 
+	                <property name="dmlTableReferencePrefix" value="" />
+	                <property name="createTablePrefix" value="CREATE RAW TABLE " />
+	                <property name="createTableSuffix" value=" extent size 51200 next size 25000" />
+	                <property name="createIndexPrefix" value="CREATE INDEX " />
+	                <property name="createIndexSuffix" value="" />
+	                <property name="indexTablePrefix" value="" />
+	                <property name="dropTablePrefix" value="DROP TABLE " />
+	            -->
+	            </bean>
+	        </property>
 		</bean>
-
+		
 		<!-- for IBM DB2 -->
 		<bean class="net.sf.jailer.Configuration">
 			<property name="urlPattern" value="jdbc:db2.*" />
@@ -98,8 +127,8 @@ http://www.springframework.org/schema/util http://www.springframework.org/schema
             <property name="stringLiteralEscapeSequences">
                 <map>
                     <entry key="'" value="''"/>
-                    <entry key="\n" value="' || char(10) || '"/>
-                    <entry key="\r" value="' || char(13) || '"/>
+                    <entry key="\n" value="' || chr(10) || '"/>
+                    <entry key="\r" value="' || chr(13) || '"/>
                </map>
             </property>
 			<property name="sqlLimitSuffix" value="fetch first %s rows only" />
@@ -135,8 +164,8 @@ http://www.springframework.org/schema/util http://www.springframework.org/schema
             <property name="stringLiteralEscapeSequences">
                 <map>
                     <entry key="'" value="''"/>
-                    <entry key="\n" value="' || char(10) || '"/>
-                    <entry key="\r" value="' || char(13) || '"/>
+                    <entry key="\n" value="' || chr(10) || '"/>
+                    <entry key="\r" value="' || chr(13) || '"/>
                </map>
             </property>
 			<property name="emptyCLOBValue" value="empty_clob()" />
@@ -169,6 +198,7 @@ http://www.springframework.org/schema/util http://www.springframework.org/schema
 					<entry key="serial4" value="int4"/>
 				</map>
 			</property>
+			<property name="binaryPattern" value="E'\\x%s'" />
 			<property name="statisticRenovator">
 				<bean class="net.sf.jailer.database.SqlScriptBasedStatisticRenovator">
 					<constructor-arg value="script/postgres/update_statistics.sql" />
@@ -218,6 +248,8 @@ http://www.springframework.org/schema/util http://www.springframework.org/schema
 		<bean class="net.sf.jailer.Configuration">
 			<property name="urlPattern"
 				value="jdbc:sqlserver.*|jdbc:inetdae.*|jdbc:JTurbo.*|jdbc:weblogic:mssqlserver.*|jdbc:jtds:sqlserver.*" />
+			<property name="emptyCLOBValue" value="''" />
+			<property name="emptyBLOBValue" value="0x" />
             <property name="stringLiteralEscapeSequences">
                 <map>
                     <entry key="'" value="''"/>
@@ -266,6 +298,20 @@ http://www.springframework.org/schema/util http://www.springframework.org/schema
 					<entry key="\b" value="\b"/>
 					<entry key="\26" value="\Z"/>
 					<entry key="\\" value="\\"/>
+				</map>
+			</property>
+			<property name="typeReplacement">
+				<map>
+					<entry key="TINYINT" value="INT"/>
+					<entry key="SMALLINT" value="INT"/>
+					<entry key="MEDIUMINT" value="INT"/>
+					<entry key="INT" value="BIGINT"/>
+					<entry key="INTEGER" value="BIGINT"/>
+					<entry key="tinyint" value="int"/>
+					<entry key="smallint" value="int"/>
+					<entry key="mediumint" value="int"/>
+					<entry key="int" value="bigint"/>
+					<entry key="integer" value="bigint"/>
 				</map>
 			</property>
 			<property name="sqlLimitSuffix" value="LIMIT 0, %s" />

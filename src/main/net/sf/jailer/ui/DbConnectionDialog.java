@@ -1,5 +1,5 @@
 /*
- * Copyright 2007 the original author or authors.
+ * Copyright 2007 - 2012 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -139,7 +139,6 @@ public class DbConnectionDialog extends javax.swing.JDialog {
 	 */
 	public DbConnectionDialog(java.awt.Frame parent, String applicationName, InfoBar infoBar) {
 		super(parent, true);
-		this.applicationName = applicationName;
 		this.parent = parent;
 		this.infoBar = infoBar;
 		loadConnectionList();
@@ -254,11 +253,6 @@ public class DbConnectionDialog extends javax.swing.JDialog {
 
 	private String jdbcHelpURL = "http://jailer.sourceforge.net/doc/jdbc.html?src=app";
 
-	/**
-	 * Application name. Used to create the name of the demo database alias. 
-	 */
-	private final String applicationName;
-	
 	public synchronized void setJdbcHelpURL(String jdbcHelpURL) {
 		this.jdbcHelpURL = jdbcHelpURL;
 	}
@@ -342,6 +336,7 @@ public class DbConnectionDialog extends javax.swing.JDialog {
 		connectionList = new ArrayList<ConnectionInfo>();
 		currentConnection = null;
 		boolean ok = false;
+		boolean preV4 = true;
 		
 		try {
             File file = new File(CONNECTIONS_FILE);
@@ -354,8 +349,9 @@ public class DbConnectionDialog extends javax.swing.JDialog {
                 	for (int n = 0; n < dma.size(); ++n) {
                 		cis.get(n).dataModelFolder = dma.get(n);
                 	}
+                	preV4 = false;
                 } catch (Throwable t) {
-                	// ignore. pre 3.8 files do not contain data model assignments.
+                	// ignore. pre 4.0 files do not contain data model assignments.
                 }
                 in.close();
                 connectionList = cis;
@@ -398,13 +394,25 @@ public class DbConnectionDialog extends javax.swing.JDialog {
 		}
 		if (connectionList.size() == 0) {
 			ConnectionInfo ci = new ConnectionInfo();
-			ci.alias = applicationName + "DemoDatabase";
+			ci.alias = "Demo Scott";
 			ci.driverClass = "org.h2.Driver";
 			ci.jar1 = "lib" + File.separator + "h2-1.3.160.jar";
-			ci.url = "jdbc:h2:demo";
+			ci.url = "jdbc:h2:demo-scott";
 			ci.user = "sa";
 			ci.password = "";
-			ci.dataModelFolder = "Demo";
+			ci.dataModelFolder = "Demo-Scott";
+			connectionList.add(ci);
+			store();
+		}
+		if (preV4) {
+			ConnectionInfo ci = new ConnectionInfo();
+			ci.alias = "Demo Sakila";
+			ci.driverClass = "org.h2.Driver";
+			ci.jar1 = "lib" + File.separator + "h2-1.3.160.jar";
+			ci.url = "jdbc:h2:demo-sakila";
+			ci.user = "sa";
+			ci.password = "";
+			ci.dataModelFolder = "Demo-Sakila";
 			connectionList.add(ci);
 			store();
 		}
@@ -712,7 +720,13 @@ public class DbConnectionDialog extends javax.swing.JDialog {
 				if (line.cells.get(0).equals(s)) {
 			    	ci.url = line.cells.get(1);
 					ci.driverClass = line.cells.get(2);
-					ci.jar1 = line.cells.get(3);
+					String[] jars = line.cells.get(3).replace("/", File.separator).split(" ");
+					if (jars.length > 0) {
+						ci.jar1 = jars[0];
+					}
+					if (jars.length > 1) {
+						ci.jar2 = jars[1];
+					}
 					ci.alias = s;
 				}
 			}
@@ -777,8 +791,16 @@ public class DbConnectionDialog extends javax.swing.JDialog {
 
 		isConnected = false;
 
-		String d1 = currentConnection.jar1.trim();
-		String d2 = currentConnection.jar2.trim();
+		if (testConnection(this, currentConnection)) {
+			isConnected = true;
+			setVisible(false);
+		}
+
+	}// GEN-LAST:event_jButton1ActionPerformed
+
+	public static boolean testConnection(Component parent, ConnectionInfo ci) {
+		String d1 = ci.jar1.trim();
+		String d2 = ci.jar2.trim();
 		if (d1.length() == 0) {
 			d1 = null;
 		}
@@ -788,33 +810,30 @@ public class DbConnectionDialog extends javax.swing.JDialog {
 		try {
 			Session.setClassLoaderForJdbcDriver(ClasspathUtil.addJarToClasspath(d1, d2));
 		} catch (Exception e) {
-			UIUtil.showException(this, "Error loading driver jars", e);
-			return;
+			UIUtil.showException(parent, "Error loading driver jars", e);
+			return false;
 		}
 
 		try {
 			if (Session.classLoaderForJdbcDriver != null) {
 				Driver d = (Driver) Class.forName(
-						currentConnection.driverClass, true,
+						ci.driverClass, true,
 						Session.classLoaderForJdbcDriver).newInstance();
 				DriverManager.registerDriver(new Session.DriverShim(d));
 			} else {
-				Class.forName(currentConnection.driverClass);
+				Class.forName(ci.driverClass);
 			}
-			Connection con = DriverManager.getConnection(currentConnection.url,
-					currentConnection.user, currentConnection.password);
+			Connection con = DriverManager.getConnection(ci.url, ci.user, ci.password);
 			con.close();
-			isConnected = true;
-			setVisible(false);
+			return true;
 		} catch (ClassNotFoundException e) {
-			UIUtil.showException(this, "Could not connect to DB", new ClassNotFoundException("JDBC driver class not found: " + e.getMessage(), e));
-			return;
+			UIUtil.showException(parent, "Could not connect to DB", new ClassNotFoundException("JDBC driver class not found: '" + e.getMessage() + "'", e));
+			return false;
 		} catch (Exception e) {
-			UIUtil.showException(this, "Could not connect to DB", e);
-			return;
+			UIUtil.showException(parent, "Could not connect to DB", e);
+			return false;
 		}
-
-	}// GEN-LAST:event_jButton1ActionPerformed
+	}
 
 	/**
 	 * Gets all DB schemas.

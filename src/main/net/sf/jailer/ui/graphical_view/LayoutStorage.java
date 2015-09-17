@@ -1,5 +1,5 @@
 /*
- * Copyright 2007 the original author or authors.
+ * Copyright 2007 - 2012 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -240,7 +240,7 @@ public class LayoutStorage {
 	 * 
 	 * @param out the stream
 	 */
-	private static void store(PrintWriter out, Map<String, Map<String, double[]>> positions) {
+	public static void store(PrintWriter out, Map<String, Map<String, double[]>> positions) {
 		out.println(CsvFile.BLOCK_INDICATOR + "layout");
 		for (String root: positions.keySet()) {
 			Map<String, double[]> pos = positions.get(root);

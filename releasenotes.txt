@@ -1,3 +1,105 @@
+4.3.6
+  - fixed a bug concerning CLOB export in Liquibase format.
+
+4.3.5
+  - added support for ARRAY type.
+
+4.3.4
+  - Workaround for http://bugs.mysql.com/bug.php?id=47108
+
+4.3.3
+  - Fix for http://sourceforge.net/p/dbeauty/tickets/4/
+
+4.3.2
+  - Fix for http://sourceforge.net/p/dbeauty/tickets/3/
+
+4.3.1
+  - Minor bug fixes. 
+
+4.3
+  - Data Browser has been improved.
+  - Fixed a performance issue related to ResultSet#getMetaData and Postgresql 9.1 JDBC driver. 
+
+4.2.4
+  - added support for postgresql UUID type.
+
+4.2.3
+  - fixed an incompatibility with Java 8.
+
+4.2.2
+  - fixed a bug concerning MySQL's unsigned integer types. 
+
+4.2.1
+  - fixed a bug concerning the determination of the universal-primary-key.
+  - fixed a bug in file chooser window (thanks to oliver45)
+
+4.2
+  - added support for Liquibase file format (thanks to achimgrie) 
+
+4.1
+  - added support for Postgres HStore data type.
+  - internal refactorings.
+
+4.0.18
+  - changed order of which the prolog/epilog files are included into the export script.
+
+4.0.17
+  - Workaround for ORA-01424.
+
+4.0.16
+  - Added support for Informix's "datetime year to day/month/minute" column type.
+
+4.0.15
+  - Added support for high-resolution mouse-wheels.
+  - Added support for Informix nonlogging raw tables (thanks to Cesar Martins)
+
+4.0.14
+  - Fixed a bug concerning BLOB/CLOB support for MS SQL
+
+4.0.13
+  - Workaround for ORA-08176.
+
+4.0.12
+  - Fixed a bug where FlatXMLTransformer would produce invalid XML when table names were quoted.
+
+4.0.11
+  - Fix for bug 3536695: "Upserts don't work for certain postgres types (e.g time)"
+
+4.0.10
+  - fixed a bug concerning pre-populated alias fields for tables with quoted names in the QueryBuilder-UI.
+  - minor GUI improvements
+
+4.0.9
+  - improved display-name-concept. Quoted table names will now be displayed unquoted.
+
+4.0.8
+  - Java 6 compatibility
+
+4.0.7
+  - Fixed a bug concerning multi-line VARCHARs in Oracle.
+
+4.0.6
+  - Fixed a bug concerning multi-line VARCHARs in DB2.
+
+4.0.4
+  - Support for DB2's FIELD PROCS
+  - Fixed a bug concerning NPE on HTML-rendering without a database connection.
+
+4.0.3
+  - Added missing ';' at end of lines in generated delete script on DB2 on Z/OS
+
+4.0.2
+  - Fixed a bug concerning TIMESTAMP pattern in Oracle.
+
+4.0.1
+  - Configurable VARCHAR-length limit. Workaround for Informix JDBC-driver bug.
+
+4.0
+  - Multi data model support.
+  - "Subset by Example" feature.
+  - Added a second demo-model.
+  - Bug fixes.
+
 3.7.10
   - Fixed a bug concerning appending of layouts in the data browser.
   - Better integration of the closure-border-browser.
